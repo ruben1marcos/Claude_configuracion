@@ -1,102 +1,129 @@
 # Script para instalar/actualizar la funcion 'claude' en los perfiles de PowerShell
 # Compatible con Windows PowerShell 5.1 y PowerShell 7+ (Core)
 # Detecta automaticamente las rutas de Claude Code y OmniRoute en cualquier PC
+# v2 - Hardened: manejo de errores, timeout de arranque mas largo, avisos de estado claros
 
-$functionCode = @'
+$startMarker = "# >>> CLAUDE-OMNIROUTE-AUTOMATION START >>>"
+$endMarker   = "# <<< CLAUDE-OMNIROUTE-AUTOMATION END <<<"
 
-# ==========================================
-# OmniRoute + Claude Code Zero-Friction (Auto-Detect)
-# ==========================================
+$functionCode = @"
+$startMarker
 function claude {
-    $port = if ($env:OMNIROUTE_PORT) { [int]$env:OMNIROUTE_PORT } else { 20128 }
-    $env:ANTHROPIC_BASE_URL = "http://localhost:$port/v1"
+    `$port = if (`$env:OMNIROUTE_PORT) { [int]`$env:OMNIROUTE_PORT } else { 20128 }
+    `$env:ANTHROPIC_BASE_URL = "http://localhost:`$port/v1"
 
-    # Si no hay API Key configurada, establecer valor por defecto para el proxy local
-    if (-not $env:ANTHROPIC_API_KEY) {
-        $env:ANTHROPIC_API_KEY = "sk-omniroute"
+    if (-not `$env:ANTHROPIC_API_KEY) {
+        `$env:ANTHROPIC_API_KEY = "sk-omniroute"
+    }
+    if (-not `$env:ANTHROPIC_MODEL) {
+        `$env:ANTHROPIC_MODEL = "auto/claude-sonnet"
     }
 
-    # Modelo por defecto con prefijo de enrutamiento para OmniRoute (evita Error 400 Ambiguous Model)
-    if (-not $env:ANTHROPIC_MODEL) {
-        $env:ANTHROPIC_MODEL = "auto/claude-sonnet"
-    }
-
-    # 1. Buscar ejecutable real de Claude Code dinámicamente
-    $claudePath = (Get-Command claude.exe, claude.cmd, claude.ps1 -CommandType Application -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source -First 1)
-    if (-not $claudePath -or -not (Test-Path $claudePath)) {
-        $claudeCandidates = @(
-            "$env:USERPROFILE\.local\bin\claude.exe",
-            "$env:APPDATA\npm\claude.cmd",
-            "$env:LOCALAPPDATA\Programs\claude\claude.exe",
-            "$env:ProgramFiles\Claude\claude.exe",
-            "$env:USERPROFILE\scoop\shims\claude.exe",
-            "$env:ALLUSERSPROFILE\chocolatey\bin\claude.exe"
+    # 1. Ejecutable real de Claude Code (excluye shims/wrappers de omniroute)
+    `$claudePath = `$null
+    try {
+        `$claudePath = Get-Command claude.exe, claude.cmd, claude.ps1 -CommandType Application -ErrorAction SilentlyContinue |
+            Where-Object { `$_.Source -notmatch 'omniroute' } |
+            Select-Object -ExpandProperty Source -First 1
+    } catch {}
+    if (-not `$claudePath -or -not (Test-Path `$claudePath)) {
+        `$claudeCandidates = @(
+            "`$env:USERPROFILE\.local\bin\claude.exe",
+            "`$env:APPDATA\npm\claude.cmd",
+            "`$env:LOCALAPPDATA\Programs\claude\claude.exe",
+            "`$env:ProgramFiles\Claude\claude.exe",
+            "`$env:USERPROFILE\scoop\shims\claude.exe",
+            "`$env:ALLUSERSPROFILE\chocolatey\bin\claude.exe"
         )
-        foreach ($c in $claudeCandidates) {
-            if ($c -and (Test-Path $c)) {
-                $claudePath = $c
-                break
-            }
+        foreach (`$c in `$claudeCandidates) {
+            if (`$c -and (Test-Path `$c)) { `$claudePath = `$c; break }
         }
     }
-
-    if (-not $claudePath) {
-        Write-Host "[Claude Automation] Error: No se encontró el ejecutable de Claude Code en el sistema." -ForegroundColor Red
-        Write-Host "Instálalo ejecutando: npm install -g @anthropic-ai/claude-code" -ForegroundColor Yellow
+    if (-not `$claudePath) {
+        Write-Host "[Claude Automation] Error: no se encontro el ejecutable de Claude Code." -ForegroundColor Red
+        Write-Host "Instalalo con: npm install -g @anthropic-ai/claude-code" -ForegroundColor Yellow
         return
     }
 
-    # 2. Buscar ejecutable de OmniRoute
-    $omniPath = (Get-Command omniroute.cmd, omniroute.exe, omniroute.ps1 -CommandType Application -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source -First 1)
-    if (-not $omniPath -or -not (Test-Path $omniPath)) {
-        $omniCandidates = @(
-            "$env:APPDATA\npm\omniroute.cmd",
-            "$env:USERPROFILE\.local\bin\omniroute.cmd",
-            "$env:USERPROFILE\scoop\shims\omniroute.cmd"
+    # 2. Ejecutable de OmniRoute
+    `$omniPath = `$null
+    try {
+        `$omniPath = Get-Command omniroute.cmd, omniroute.exe, omniroute.ps1 -CommandType Application -ErrorAction SilentlyContinue |
+            Select-Object -ExpandProperty Source -First 1
+    } catch {}
+    if (-not `$omniPath -or -not (Test-Path `$omniPath)) {
+        `$omniCandidates = @(
+            "`$env:APPDATA\npm\omniroute.cmd",
+            "`$env:USERPROFILE\.local\bin\omniroute.cmd",
+            "`$env:USERPROFILE\scoop\shims\omniroute.cmd"
         )
-        foreach ($o in $omniCandidates) {
-            if ($o -and (Test-Path $o)) {
-                $omniPath = $o
-                break
-            }
+        foreach (`$o in `$omniCandidates) {
+            if (`$o -and (Test-Path `$o)) { `$omniPath = `$o; break }
         }
     }
 
-    # 3. Comprobar si OmniRoute está escuchando en el puerto
-    $serverRunning = $false
-    $testPort = {
+    # 3. Comprobar si OmniRoute esta escuchando en el puerto (TCP real)
+    function Test-OmniRoutePort {
+        param([int]`$TimeoutMs = 800)
+        `$client = `$null
         try {
-            $client = New-Object System.Net.Sockets.TcpClient
-            $iar = $client.BeginConnect("127.0.0.1", $port, $null, $null)
-            if ($iar.AsyncWaitHandle.WaitOne(300, $false) -and $client.Connected) {
-                $client.EndConnect($iar)
-                $client.Close()
-                return $true
+            `$client = New-Object System.Net.Sockets.TcpClient
+            `$iar = `$client.BeginConnect("127.0.0.1", `$port, `$null, `$null)
+            if (`$iar.AsyncWaitHandle.WaitOne(`$TimeoutMs, `$false)) {
+                `$client.EndConnect(`$iar)
+                return `$true
             }
-            $client.Close()
-        } catch {}
-        return $false
+            return `$false
+        } catch {
+            return `$false
+        } finally {
+            if (`$client) { `$client.Close() }
+        }
     }
 
-    $serverRunning = & $testPort
+    Write-Host "Verificando OmniRoute..." -ForegroundColor Cyan
+    `$serverRunning = Test-OmniRoutePort
 
-    # 4. Iniciar OmniRoute si no está corriendo
-    if (-not $serverRunning -and $omniPath) {
-        Write-Host "Iniciando OmniRoute en segundo plano..." -ForegroundColor Cyan
-        Start-Process -FilePath $omniPath -ArgumentList "serve" -WindowStyle Hidden -ErrorAction SilentlyContinue
+    # 4. Iniciar OmniRoute si no esta corriendo, con reintentos reales y avisos claros
+    if (`$serverRunning) {
+        Write-Host "OmniRoute ya esta activo. Enlazando con Claude Code..." -ForegroundColor Green
+    } else {
+        if (-not `$omniPath) {
+            Write-Host "[Claude Automation] Aviso: OmniRoute no esta corriendo y no se encontro su ejecutable." -ForegroundColor Yellow
+            Write-Host "Instalalo con: npm install -g omniroute" -ForegroundColor Yellow
+        } else {
+            Write-Host "Abriendo OmniRoute en segundo plano y enlazando..." -ForegroundColor Cyan
+            try {
+                Start-Process -FilePath `$omniPath -ArgumentList "serve" -WindowStyle Hidden -ErrorAction Stop
+            } catch {
+                Write-Host "[Claude Automation] No se pudo lanzar OmniRoute: `$(`$_.Exception.Message)" -ForegroundColor Red
+            }
 
-        $elapsed = 0
-        while ($elapsed -lt 4000 -and -not $serverRunning) {
-            Start-Sleep -Milliseconds 300
-            $elapsed += 300
-            $serverRunning = & $testPort
+            `$maxWaitMs = 15000
+            `$intervalMs = 400
+            `$elapsed = 0
+            while (`$elapsed -lt `$maxWaitMs -and -not `$serverRunning) {
+                Start-Sleep -Milliseconds `$intervalMs
+                `$elapsed += `$intervalMs
+                `$serverRunning = Test-OmniRoutePort
+            }
+
+            if (-not `$serverRunning) {
+                Write-Host "[Claude Automation] OmniRoute no respondio tras `$(`$maxWaitMs/1000)s." -ForegroundColor Red
+                Write-Host "Verifica manualmente ejecutando 'omniroute serve' en otra terminal." -ForegroundColor Yellow
+                Write-Host "Continuando de todos modos (la conexion puede fallar hasta que OmniRoute este listo)..." -ForegroundColor DarkYellow
+            } else {
+                Write-Host "OmniRoute listo y enlazado." -ForegroundColor Green
+            }
         }
     }
 
     # 5. Ejecutar Claude Code con todos los argumentos pasados
-    & $claudePath @args
+    Write-Host "Abriendo Claude Code..." -ForegroundColor Cyan
+    & `$claudePath @args
 }
-'@
+$endMarker
+"@
 
 $targetProfiles = @(
     $PROFILE,
@@ -138,18 +165,31 @@ foreach ($p in $targetProfiles) {
     $content = Get-Content -Path $p -Raw -ErrorAction SilentlyContinue
     if (-not $content) { $content = "" }
 
-    # Si ya existe una versión previa de la función claude, reemplazarla limpiamente
-    if ($content -match "(?ms)# ==========================================.*?function claude \{.*?\n\}") {
-        $updatedContent = $content -replace "(?ms)# ==========================================.*?function claude \{.*?\n\}", $functionCode.Trim()
+    # Reemplazo idempotente: busca el bloque entre marcadores explicitos (soporta funciones anidadas)
+    $blockPattern = [regex]::Escape($startMarker) + "(?ms).*?" + [regex]::Escape($endMarker)
+    if ($content -match $blockPattern) {
+        $updatedContent = [regex]::Replace($content, $blockPattern, { $functionCode.Trim() })
         Set-Content -Path $p -Value $updatedContent -Encoding utf8
         Write-Host "Configuracion actualizada exitosamente en: $p" -ForegroundColor Green
-    } elseif ($content -match "(?ms)function claude \{.*?\n\}") {
-        $updatedContent = $content -replace "(?ms)function claude \{.*?\n\}", $functionCode.Trim()
+    } elseif ($content -match "(?ms)function claude \{.*") {
+        # Instalacion previa sin marcadores (version antigua): reemplaza desde el header viejo hasta el final del archivo
+        $legacyPattern = "(?ms)# =+\s*\n# OmniRoute.*"
+        if ($content -match $legacyPattern) {
+            $updatedContent = [regex]::Replace($content, $legacyPattern, { $functionCode.Trim() })
+        } else {
+            $updatedContent = $content + "`n`n" + $functionCode.Trim()
+        }
         Set-Content -Path $p -Value $updatedContent -Encoding utf8
-        Write-Host "Configuracion actualizada exitosamente en: $p" -ForegroundColor Green
+        Write-Host "Configuracion (version antigua) reemplazada en: $p" -ForegroundColor Green
     } else {
-        Add-Content -Path $p -Value "`n$functionCode" -Encoding utf8
+        Add-Content -Path $p -Value "`n$($functionCode.Trim())" -Encoding utf8
         Write-Host "Configuracion agregada exitosamente a: $p" -ForegroundColor Green
     }
-}
 
+    $errors = $null
+    [System.Management.Automation.Language.Parser]::ParseFile($p, [ref]$null, [ref]$errors) | Out-Null
+    if ($errors.Count -gt 0) {
+        Write-Host "ADVERTENCIA: error de sintaxis detectado en $p tras la instalacion:" -ForegroundColor Red
+        $errors | ForEach-Object { Write-Host "  $($_.Message)" -ForegroundColor Red }
+    }
+}
