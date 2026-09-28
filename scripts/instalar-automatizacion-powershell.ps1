@@ -16,6 +16,11 @@ function claude {
         $env:ANTHROPIC_API_KEY = "sk-omniroute"
     }
 
+    # Modelo por defecto con prefijo de enrutamiento para OmniRoute (evita Error 400 Ambiguous Model)
+    if (-not $env:ANTHROPIC_MODEL) {
+        $env:ANTHROPIC_MODEL = "auto/claude-sonnet"
+    }
+
     # 1. Buscar ejecutable real de Claude Code dinámicamente
     $claudePath = (Get-Command claude.exe, claude.cmd, claude.ps1 -CommandType Application -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source -First 1)
     if (-not $claudePath -or -not (Test-Path $claudePath)) {
@@ -98,6 +103,28 @@ $targetProfiles = @(
     "$env:USERPROFILE\Documents\WindowsPowerShell\Microsoft.PowerShell_profile.ps1",
     "$env:USERPROFILE\Documents\PowerShell\Microsoft.PowerShell_profile.ps1"
 ) | Select-Object -Unique
+
+# Configurar automaticamente ~/.omniroute/.env para evitar Error 401 (x-api-key vs Bearer)
+$omniDir = "$env:USERPROFILE\.omniroute"
+$omniEnvFile = "$omniDir\.env"
+if (-not (Test-Path $omniDir)) {
+    New-Item -ItemType Directory -Force -Path $omniDir | Out-Null
+}
+if (Test-Path $omniEnvFile) {
+    $envContent = Get-Content -Path $omniEnvFile -Raw -ErrorAction SilentlyContinue
+    if (-not $envContent) { $envContent = "" }
+    if ($envContent -notmatch "REQUIRE_API_KEY\s*=") {
+        Add-Content -Path $omniEnvFile -Value "`nREQUIRE_API_KEY=false" -Encoding utf8
+        Write-Host "Configurado REQUIRE_API_KEY=false en: $omniEnvFile" -ForegroundColor Green
+    } elseif ($envContent -match "REQUIRE_API_KEY\s*=\s*true") {
+        $envContent = $envContent -replace "REQUIRE_API_KEY\s*=\s*true", "REQUIRE_API_KEY=false"
+        Set-Content -Path $omniEnvFile -Value $envContent -Encoding utf8
+        Write-Host "Actualizado REQUIRE_API_KEY=false en: $omniEnvFile" -ForegroundColor Green
+    }
+} else {
+    Set-Content -Path $omniEnvFile -Value "REQUIRE_API_KEY=false" -Encoding utf8
+    Write-Host "Creado archivo .env con REQUIRE_API_KEY=false en: $omniEnvFile" -ForegroundColor Green
+}
 
 foreach ($p in $targetProfiles) {
     if (-not (Test-Path $p)) {

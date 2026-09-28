@@ -39,6 +39,13 @@ Enrutador inteligente local con fallback automático y soporte multi-modelo para
   npm install -g omniroute
   ```
 - **Panel Web / Dashboard:** `http://localhost:20128`
+- **Configuración de autenticación local (`~/.omniroute/.env`):**
+  ```dotenv
+  REQUIRE_API_KEY=false
+  ```
+  *(Permite compatibilidad con las cabeceras `x-api-key` del SDK nativo de Anthropic).*
 - **Comandos clave:**
-  - `omniroute serve`: Inicia el servidor local.
-  - `omniroute launch`: Lanza Claude Code conectado al proxy local.
+  - `omniroute serve`: Inicia el servidor proxy local.
+  - `claude`: Inicia Claude Code directamente mediante la función automatizada de PowerShell (evita los problemas del wrapper `omniroute launch`).
+- **Selección de modelos con prefijo de enrutador:**
+  - En la terminal de Claude: `/model auto/claude-sonnet` (o `dva/claude-sonnet-5`). Evita el error *400 Ambiguous model*.

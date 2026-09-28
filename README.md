@@ -11,6 +11,8 @@ Permite sincronizar y configurar cualquier PC nuevo en menos de **2 minutos**.
 ```text
 Configuracion_claude/
 ├── README.md
+├── docs/                        # Documentación técnica y reportes
+│   └── reporte-integracion-omniroute.md  # Reporte y soluciones Claude Code + OmniRoute
 ├── skills/                      # Archivos .md de las skills de Claude Code
 │   ├── agent-browser.md         # Navegación y pruebas web autónomas
 │   ├── humanized.md             # Respuestas naturales y sin tono corporativo
@@ -23,7 +25,7 @@ Configuracion_claude/
 │   └── ultrareview.md           # Revisión implacable de código y arquitectura
 ├── scripts/                     # Scripts de automatización en PowerShell y VBS
 │   ├── instalar-skills-en-claude.ps1            # Copia las skills a ~/.claude/skills
-│   ├── instalar-automatizacion-powershell.ps1   # Inyecta la función 'claude' en $PROFILE
+│   ├── instalar-automatizacion-powershell.ps1   # Inyecta la función 'claude' en $PROFILE y ajusta .env
 │   └── iniciar-omniroute-silencioso.vbs         # Lanza OmniRoute en segundo plano sin consola
 └── plugins-and-mcp/             # Configuración y guía de plugins
     └── plugins.md               # Resumen de Superpowers, GSD, Context-Mode, Claude-Mem
@@ -87,5 +89,26 @@ Copia el archivo `scripts\iniciar-omniroute-silencioso.vbs` a tu carpeta de inic
 
 ---
 
-## 🔐 Manejo de Claves API
+## 🔐 Manejo de Claves API y OmniRoute
 OmniRoute administra tus credenciales de forma local y centralizada en `~/.omniroute`. Ya no es necesario ingresar la clave API en cada sesión ni exportar variables de entorno manualmente.
+
+---
+
+## 🔧 Solución de Problemas (Troubleshooting OmniRoute + Claude Code)
+
+Si encuentras discrepancias o errores de conexión entre Claude Code y OmniRoute, consulta [el reporte técnico detallado en docs/reporte-integracion-omniroute.md](docs/reporte-integracion-omniroute.md).
+
+### Resumen de Errores Comunes y Soluciones:
+
+1. **Error 401 (Invalid API Key):**
+   - *Causa:* Claude Code envía `x-api-key`, mientras OmniRoute busca `Authorization: Bearer`.
+   - *Solución:* El script `instalar-automatizacion-powershell.ps1` configura automáticamente `REQUIRE_API_KEY=false` en `~/.omniroute/.env`.
+
+2. **Fallo de variables al usar `omniroute launch`:**
+   - *Causa:* El wrapper sobrescribe variables de entorno y causa conflictos con ejecutables locales.
+   - *Solución:* Usar la función directa `claude` configurada en PowerShell, que lanza el ejecutable nativo apuntando a `http://localhost:20128/v1`.
+
+3. **Error 400 (Ambiguous model):**
+   - *Causa:* Enviar nombres de modelos sin prefijo de enrutamiento (ej. `claude-sonnet-5`).
+   - *Solución:* Usar el prefijo `auto/` o de tu proveedor: `/model auto/claude-sonnet`. El script de PowerShell ya establece `$env:ANTHROPIC_MODEL = "auto/claude-sonnet"` por defecto.
+
