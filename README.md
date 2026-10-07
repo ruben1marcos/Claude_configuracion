@@ -26,9 +26,10 @@ Configuracion_claude/
 ├── scripts/                     # Scripts de automatización en PowerShell y VBS
 │   ├── instalar-skills-en-claude.ps1            # Copia las skills a ~/.claude/skills
 │   ├── instalar-automatizacion-powershell.ps1   # Inyecta la función 'claude' en $PROFILE y ajusta .env
+│   ├── instalar-notebooklm-mcp.ps1              # Instala uv + NotebookLM MCP y lo registra en Claude Code y Desktop
 │   └── iniciar-omniroute-silencioso.vbs         # Lanza OmniRoute en segundo plano sin consola
 └── plugins-and-mcp/             # Configuración y guía de plugins
-    └── plugins.md               # Resumen de Superpowers, GSD, Context-Mode, Claude-Mem
+    └── plugins.md               # Resumen de Superpowers, GSD, Context-Mode, Claude-Mem, OmniRoute, NotebookLM MCP
 ```
 
 ---
@@ -64,6 +65,12 @@ Para que al escribir `claude` en cualquier terminal se inicie OmniRoute automát
 powershell -ExecutionPolicy Bypass -File .\scripts\instalar-automatizacion-powershell.ps1
 ```
 
+### Paso 5 (opcional): NotebookLM MCP
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\instalar-notebooklm-mcp.ps1
+nlm login   # en una PowerShell normal (no administrador), opción 1
+```
+
 *(Opcional - Inicio automático con Windows):*
 Copia el archivo `scripts\iniciar-omniroute-silencioso.vbs` a tu carpeta de inicio (`Win + R` -> `shell:startup`).
 
@@ -86,6 +93,7 @@ Copia el archivo `scripts\iniciar-omniroute-silencioso.vbs` a tu carpeta de inic
 | **Humanized** | `/humanized` | Redacción natural sin clichés de IA |
 | **Stop Slop** | `/stop-slop` | Elimina código defensivo innecesario y sobre-ingeniería |
 | **Remotion** | `/remotion` | Creación de video programático con React |
+| **NotebookLM MCP** | `nlm` / MCP `gemini-notebook-mcp` | Consulta y gestiona cuadernos de NotebookLM (ver `plugins-and-mcp/plugins.md`, sección 6) |
 
 ---
 
