@@ -21,6 +21,7 @@ Configuracion_claude/
 │   ├── reglas-vercel.md         # Estándares y optimizaciones para Vercel/Next.js
 │   ├── remotion.md              # Creación de videos con React y Remotion
 │   ├── skill-creator.md         # Generador de nuevas habilidades para Claude
+│   ├── skills-lock.json         # Skills de proyecto instaladas con `npx skills` (ver plugins.md §11)
 │   ├── stop-slop.md             # Filtro anti-código redundante y explicaciones innecesarias
 │   └── ultrareview.md           # Revisión implacable de código y arquitectura
 ├── scripts/                     # Scripts de automatización en PowerShell y VBS
@@ -29,7 +30,7 @@ Configuracion_claude/
 │   ├── instalar-notebooklm-mcp.ps1              # Instala uv + NotebookLM MCP y lo registra en Claude Code y Desktop
 │   └── iniciar-omniroute-silencioso.vbs         # Lanza OmniRoute en segundo plano sin consola
 └── plugins-and-mcp/             # Configuración y guía de plugins
-    └── plugins.md               # Resumen de Superpowers, GSD, Context-Mode, Claude-Mem, OmniRoute, NotebookLM MCP
+    └── plugins.md               # Instalación de todos los plugins (Superpowers, Claude-Mem, Context-Mode, Impeccable, Ponytail, UI UX Pro Max, Context Engineering), OmniRoute, NotebookLM MCP y skills de proyecto
 ```
 
 ---
@@ -94,6 +95,13 @@ Copia el archivo `scripts\iniciar-omniroute-silencioso.vbs` a tu carpeta de inic
 | **Stop Slop** | `/stop-slop` | Elimina código defensivo innecesario y sobre-ingeniería |
 | **Remotion** | `/remotion` | Creación de video programático con React |
 | **NotebookLM MCP** | `nlm` / MCP `gemini-notebook-mcp` | Consulta y gestiona cuadernos de NotebookLM (ver `plugins-and-mcp/plugins.md`, sección 6) |
+| **Impeccable** | `/impeccable` | Dirección y acabado de diseño frontend |
+| **Ponytail** | `/ponytail` | Código mínimo, sin sobre-ingeniería |
+| **UI UX Pro Max** | `/ui-ux-pro-max` | Design systems, branding y estilos UI |
+| **Context Engineering** | `context-engineering:*` | Gestión de contexto, memoria y multi-agente |
+| **Skills de proyecto** | `npx skills` | Animación (Emil Kowalski), Remotion, claude-design, etc. (ver `plugins.md` §11) |
+
+Copia de respaldo de todas las skills (globales y de proyecto): https://github.com/ruben1marcos/claude-skills
 
 ---
 

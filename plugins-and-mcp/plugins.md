@@ -2,6 +2,18 @@
 
 Este documento contiene la lista y comandos de instalación de todos los plugins y MCPs configurados en este entorno.
 
+## Instalación rápida de plugins (dentro de Claude Code)
+
+| Plugin | Marketplace (`/plugin marketplace add ...`) | Instalar (`/plugin install ...`) |
+| :--- | :--- | :--- |
+| Claude-Mem | `thedotmack/claude-mem` | `claude-mem@thedotmack` |
+| Superpowers | `obra/superpowers-marketplace` | `superpowers@superpowers-marketplace` |
+| Context-Mode | `mksglu/context-mode` | `context-mode@context-mode` |
+| Impeccable | `pbakaus/impeccable` | `impeccable@impeccable` |
+| Ponytail | `DietrichGebert/ponytail` | `ponytail@ponytail` |
+| UI UX Pro Max | `nextlevelbuilder/ui-ux-pro-max-skill` | `ui-ux-pro-max@ui-ux-pro-max-skill` |
+| Context Engineering | `muratcankoylan/Agent-Skills-for-Context-Engineering` | `context-engineering@context-engineering-marketplace` |
+
 ---
 
 ## 1. Context-Mode
@@ -69,3 +81,35 @@ Servidor MCP + CLI (`nlm`) para consultar y gestionar cuadernos de NotebookLM de
   ```
 - **Autenticacion (manual, una vez por PC):** ejecuta `nlm login` en una PowerShell NORMAL de tu usuario (no como administrador: el perfil se guarda en el home del usuario que lo ejecuta) y elige la opcion 1 (protegido). Las credenciales viven en `~/.notebooklm-mcp-cli/` y nunca se suben a este repositorio.
 - **Comprobar:** `nlm notebook list` y reiniciar Claude para que cargue el MCP.
+
+---
+
+## 7. Impeccable
+Skills de diseño frontend (dirección visual, revisión de acabado, documentación de DESIGN.md). Comando: `/impeccable`.
+
+---
+
+## 8. Ponytail
+Modo "desarrollador senior perezoso": código mínimo, sin sobre-ingeniería. Comandos: `/ponytail lite|full|ultra`, `/ponytail-review`, `/ponytail-audit`.
+
+---
+
+## 9. UI UX Pro Max
+Skills de diseño UI/UX: design systems, branding, banners, slides, estilos. Comando: `/ui-ux-pro-max`.
+
+---
+
+## 10. Context Engineering
+Skills sobre gestión de contexto, memoria, multi-agente y evaluación de agentes (`context-engineering:*`).
+
+---
+
+## 11. Skills de proyecto con `npx skills`
+Skills de terceros instaladas por proyecto en `.claude/skills` y registradas en [`skills/skills-lock.json`](../skills/skills-lock.json): animaciones y diseño (emilkowalski/skill), Remotion (remotion-dev/skills), claude-design, find-skills y web-design-guidelines (vercel-labs).
+- **Restaurar en un proyecto:**
+  ```powershell
+  Copy-Item .\skills\skills-lock.json "<proyecto>\"
+  cd "<proyecto>"; npx skills experimental_install
+  ```
+- **Actualizar:** `npx skills update -p -y`
+- Copia completa (incluye las que no están en el lock: task-observer, prompt-master, humanize-writing, etc.) en https://github.com/ruben1marcos/claude-skills (`project-skills/`).
